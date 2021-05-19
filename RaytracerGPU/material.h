@@ -19,6 +19,7 @@ struct hit_record;
 #include "hitable_list.h"
 #include "sphere.h"
 #include "camera.h"
+#include "texture.h"
 
 __device__ float schlick(float cosine, float ref_idx) {
     float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
@@ -59,15 +60,16 @@ public:
 
 class lambertian : public material {
 public:
-    __device__ lambertian(const vec3& a) : albedo(a) {}
+    __device__ lambertian(const vec3& a) : albedo(new solid_color(a)) {}
+    __device__ lambertian(texture1* a) : albedo(a) {}
     __device__ virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState* local_rand_state) const {
         vec3 target = rec.p + rec.normal + random_in_unit_sphere(local_rand_state);
         scattered = ray(rec.p, target - rec.p, r_in.time());
-        attenuation = albedo;
+        attenuation = albedo->value(rec.u, rec.v, rec.p);
         return true;
     }
 
-    vec3 albedo;
+    texture1* albedo;
 };
 
 class metal : public material {

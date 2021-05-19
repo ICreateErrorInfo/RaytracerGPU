@@ -91,7 +91,7 @@ __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_cam
 
         auto center2 = vec3(0, 0, -20) + vec3(0, .5, 0);
         d_list[0] = new moving_sphere(vec3(0, 0, -20), center2, 0, 1, 4, new metal(vec3(1, 0.32, 0.36), 0));
-        d_list[1] = new sphere(vec3(   0,  -1004, -20),  1000, new metal(vec3(.7, .7, .7), .7));
+        d_list[1] = new sphere(vec3(   0,  -1004, -20),  1000, new lambertian(new checker_texture(vec3(0.2, 0.3, 0.1), vec3(0.9, 0.9, 0.9))));
         d_list[2] = new sphere(vec3(   5,     -1, -15),     2, new metal(vec3(0.90, 0.76, 0.46), 0.0));
         d_list[3] = new sphere(vec3(   5,      0, -25),     3, new metal(vec3(0.65, 0.77, 0.97), 0.0));
         d_list[4] = new sphere(vec3(-5.5,      0, -15),     3, new metal(vec3(0.90, 0.90, 0.90), 0.0));
@@ -112,6 +112,33 @@ __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_cam
                                dist_to_focus,
                                0.0,
                                1.0);
+    }
+}
+
+__global__ void create_world1(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+
+        auto center2 = vec3(0, 0, -20) + vec3(0, .5, 0);
+        auto checker = new checker_texture(vec3(0.2, 0.3, 0.1), vec3(0.9, 0.9, 0.9));
+        d_list[0] = new sphere(vec3(0, -10, 0), 10, new lambertian(checker));
+        d_list[1] = new sphere(vec3(0,  10, 0), 10, new lambertian(checker));
+
+        *d_world = new hitable_list(d_list, 2);
+
+
+        vec3 lookfrom(13, 2, 3);
+        vec3 lookat(0, 0, 0);
+        float dist_to_focus = 10;
+        float aperture = 0;
+        *d_camera = new camera(lookfrom,
+            lookat,
+            vec3(0, 1, 0),
+            20,
+            float(nx) / float(ny),
+            aperture,
+            dist_to_focus,
+            0.0,
+            1.0);
     }
 }
 
@@ -154,7 +181,18 @@ int main()
     checkCudaErrors(cudaMalloc((void**)&d_world, sizeof(hitable*)));
     camera** d_camera;
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(camera*)));
-    create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
+
+    switch (2) 
+    {
+    case 1:
+        create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
+        break;
+
+    case 2:
+        create_world1 << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
+        break;
+    }
+    
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 

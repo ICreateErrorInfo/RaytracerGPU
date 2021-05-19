@@ -16,6 +16,7 @@
 #include "sphere.h"
 #include "camera.h"
 #include "material.h"
+#include "moving_spheres.h"
 
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
@@ -64,7 +65,6 @@ __global__ void render_init(int max_x, int max_y, curandState* rand_state) {
     curand_init(1984, pixel_index, 0, &rand_state[pixel_index]);
 }
 
-
 __global__ void render(vec3* fb, int max_x, int max_y, int ns, camera** cam, hitable** world, curandState* rand_state) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -88,7 +88,9 @@ __global__ void render(vec3* fb, int max_x, int max_y, int ns, camera** cam, hit
 
 __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
-        d_list[0] = new sphere(vec3(   0,      0, -20),     4, new metal(vec3(1, 0.32, 0.36), 0.0));
+
+        auto center2 = vec3(0, 0, -20) + vec3(0, .5, 0);
+        d_list[0] = new moving_sphere(vec3(0, 0, -20), center2, 0, 1, 4, new metal(vec3(1, 0.32, 0.36), 0));
         d_list[1] = new sphere(vec3(   0,  -1004, -20),  1000, new metal(vec3(.7, .7, .7), .7));
         d_list[2] = new sphere(vec3(   5,     -1, -15),     2, new metal(vec3(0.90, 0.76, 0.46), 0.0));
         d_list[3] = new sphere(vec3(   5,      0, -25),     3, new metal(vec3(0.65, 0.77, 0.97), 0.0));
@@ -107,7 +109,9 @@ __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_cam
                                50,
                                float(nx) / float(ny),
                                aperture,
-                               dist_to_focus);
+                               dist_to_focus,
+                               0.0,
+                               1.0);
     }
 }
 
@@ -123,9 +127,9 @@ __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camer
 
 int main()
 {
-    int nx = 4096;
-    int ny = 2304;
-    int ns = 10000;
+    int nx = 1920;
+    int ny = 1080;
+    int ns = 1000;
     int tx = 8;
     int ty = 8;
 
@@ -170,7 +174,7 @@ int main()
     std::cerr << "took " << timer_seconds << " seconds.\n";
 
     // Output FB as Image
-    std::ofstream myfile("Image.ppm", std::ios::out | std::ios::binary);
+    std::ofstream myfile("Image1.ppm", std::ios::out | std::ios::binary);
 
     myfile << "P6\n" << nx << " " << ny << "\n255\n";
 
@@ -190,13 +194,13 @@ int main()
     // clean up
     myfile.close();
     checkCudaErrors(cudaDeviceSynchronize());
-    free_world << <1, 1 >> > (d_list, d_world, d_camera);
-    checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaFree(d_camera));
     checkCudaErrors(cudaFree(d_world));
     checkCudaErrors(cudaFree(d_list));
     checkCudaErrors(cudaFree(d_rand_state));
     checkCudaErrors(cudaFree(fb));
-
+    free_world << <1, 1 >> > (d_list, d_world, d_camera);
+    checkCudaErrors(cudaGetLastError()); 
+    
     cudaDeviceReset();
 }

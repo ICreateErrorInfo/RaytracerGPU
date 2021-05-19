@@ -11,6 +11,12 @@ struct hit_record
     vec3 p;
     vec3 normal;
     material* mat_ptr;
+    bool frontface;
+
+    __device__ void setFaceNormal(ray r, vec3 outward_normal) {
+        frontface = dot(r.direction(), outward_normal) < 0;
+        normal = frontface ? outward_normal : -outward_normal;
+    }
 };
 
 class hitable {

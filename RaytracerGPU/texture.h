@@ -59,7 +59,7 @@ public:
 
     __device__ virtual vec3 value(double u, double v, const vec3& p) const override {
 
-        return vec3(1, 1, 1) * 0.5 * (1.0 + noise.noise(scale * p));
+        return vec3(1, 1, 1) * noise.turb(scale * p);
     }
 
 public:

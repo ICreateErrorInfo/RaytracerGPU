@@ -22,9 +22,6 @@ public:
         perm_x = perlin_generate_perm(d_rand_state);
         perm_y = perlin_generate_perm(d_rand_state);
         perm_z = perlin_generate_perm(d_rand_state);
-
-        printf("%d \n", perm_x[6]);
-        printf("init \n");
        
     }
 
@@ -54,6 +51,20 @@ public:
                     ];
 
         return perlin_interp(c, u, v, w);
+    }
+
+    __device__ double turb(const vec3& p, int depth = 7) const {
+        auto accum = 0.0;
+        auto temp_p = p;
+        auto weight = 1.0;
+
+        for (int i = 0; i < depth; i++) {
+            accum += weight * noise(temp_p);
+            weight *= 0.5;
+            temp_p *= 2;
+        }
+
+        return fabs(accum);
     }
 
 private:

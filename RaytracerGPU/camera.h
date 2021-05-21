@@ -14,9 +14,9 @@ __device__ vec3 random_in_unit_disk(curandState* local_rand_state) {
     return p;
 }
 
-__device__ double random_double(curandState* local_rand_state, double min, double max) {
+__device__ float random_double(curandState* local_rand_state, double min, double max) {
         
-    double random = curand_uniform(local_rand_state);
+    float random = curand_uniform(local_rand_state);
     return min + (max - min) * random;
 }
 

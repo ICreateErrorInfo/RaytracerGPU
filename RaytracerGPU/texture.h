@@ -3,6 +3,7 @@
 
 #include "vec3.h"
 #include <curand_kernel.h>
+#include "perlin.h"
 
 class texture1 {
 public:
@@ -46,6 +47,22 @@ public:
 public:
     texture1* odd;
     texture1* even;
+};
+
+class noise_texture : public texture1 {
+public:
+    __device__ noise_texture(curandState* d_rand_state)
+    {
+        noise = perlin(d_rand_state);
+    }
+
+    __device__ virtual vec3 value(double u, double v, const vec3& p) const override {
+
+        return vec3(1, 1, 1) * noise.noise(p);
+    }
+
+public:
+    perlin noise;
 };
 
 #endif

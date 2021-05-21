@@ -142,6 +142,39 @@ __global__ void create_world1(hitable** d_list, hitable** d_world, camera** d_ca
     }
 }
 
+__global__ void create_world2(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny, curandState* rand_state) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        //curandState* randState;
+        //cudaMalloc((void**)&randState, sizeof(curandState));
+        //
+        //curand_init(1984, 0, 0, &randState[0]);
+
+        auto pertext = new checker_texture(vec3(0.2, 0.3, 0.1), vec3(0.9, 0.9, 0.9));
+        auto pertext1 = new noise_texture(rand_state);
+        d_list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(pertext1));
+        d_list[1] = new sphere(vec3(0, 2, 0), 2, new lambertian(pertext1));
+
+        *d_world = new hitable_list(d_list, 2);
+
+
+        vec3 lookfrom(13, 2, 3);
+        vec3 lookat(0, 0, 0);
+        float dist_to_focus = 10;
+        float aperture = 0;
+        *d_camera = new camera(lookfrom,
+            lookat,
+            vec3(0, 1, 0),
+            20,
+            float(nx) / float(ny),
+            aperture,
+            dist_to_focus,
+            0.0,
+            1.0);
+
+        //cudaFree(randState);
+    }
+}
+
 __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camera) {
     for (int i = 0; i < 5; i++) {
         delete ((sphere*)d_list[i])->mat_ptr;
@@ -182,7 +215,11 @@ int main()
     camera** d_camera;
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(camera*)));
 
-    switch (2) 
+    dim3 blocks(nx / tx + 1, ny / ty + 1);
+    dim3 threads(tx, ty);
+    render_init << <blocks, threads >> > (nx, ny, d_rand_state);
+
+    switch (3) 
     {
     case 1:
         create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
@@ -190,6 +227,10 @@ int main()
 
     case 2:
         create_world1 << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
+        break;
+
+    case 3:
+        create_world2 << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, d_rand_state);
         break;
     }
     
@@ -199,9 +240,6 @@ int main()
     clock_t start, stop;
     start = clock();
     // Render our buffer
-    dim3 blocks(nx / tx + 1, ny / ty + 1);
-    dim3 threads(tx, ty);
-    render_init << <blocks, threads >> > (nx, ny, d_rand_state);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     render << <blocks, threads >> > (fb, nx, ny, ns, d_camera, d_world, d_rand_state);

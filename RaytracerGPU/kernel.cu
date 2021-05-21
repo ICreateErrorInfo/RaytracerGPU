@@ -150,7 +150,7 @@ __global__ void create_world2(hitable** d_list, hitable** d_world, camera** d_ca
         //curand_init(1984, 0, 0, &randState[0]);
 
         auto pertext = new checker_texture(vec3(0.2, 0.3, 0.1), vec3(0.9, 0.9, 0.9));
-        auto pertext1 = new noise_texture(rand_state);
+        auto pertext1 = new noise_texture(rand_state, 4);
         d_list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(pertext1));
         d_list[1] = new sphere(vec3(0, 2, 0), 2, new lambertian(pertext1));
 

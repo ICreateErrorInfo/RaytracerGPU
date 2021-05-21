@@ -51,18 +51,20 @@ public:
 
 class noise_texture : public texture1 {
 public:
-    __device__ noise_texture(curandState* d_rand_state)
+    __device__ noise_texture(curandState* d_rand_state, double sc)
     {
         noise = perlin(d_rand_state);
+        scale = sc;
     }
 
     __device__ virtual vec3 value(double u, double v, const vec3& p) const override {
 
-        return vec3(1, 1, 1) * noise.noise(p);
+        return vec3(1, 1, 1) * 0.5 * (1.0 + noise.noise(scale * p));
     }
 
 public:
     perlin noise;
+    double scale;
 };
 
 #endif

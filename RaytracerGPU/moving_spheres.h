@@ -4,6 +4,7 @@
 
 #include "hitable.h"
 #include "ray.h"
+#include "aabb.h"
 
 class moving_sphere : public hitable {
 public:
@@ -16,6 +17,9 @@ public:
     __device__ virtual bool hit(const ray& r, float tmin, float tmax, hit_record& rec) const;
 
 	__device__ vec3 center(float time) const;
+
+    __device__ virtual bool bounding_box(
+        double _time0, double _time1, aabb& output_box) const override;
 
 	vec3 center0, center1;
 	float time0, time1;
@@ -50,6 +54,16 @@ __device__ bool moving_sphere::hit(const ray& r, float t_min, float t_max, hit_r
     rec.setFaceNormal(r, outward_normal);
     rec.mat_ptr = matptr;
 
+    return true;
+}
+__device__ bool moving_sphere::bounding_box(double _time0, double _time1, aabb& output_box) const {
+    aabb box0(
+        center(_time0) - vec3(radius, radius, radius),
+        center(_time0) + vec3(radius, radius, radius));
+    aabb box1(
+        center(_time1) - vec3(radius, radius, radius),
+        center(_time1) + vec3(radius, radius, radius));
+    output_box = aabb::surrounding_box(box0, box1);
     return true;
 }
 #endif

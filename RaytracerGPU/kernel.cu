@@ -219,7 +219,7 @@ int main()
     dim3 threads(tx, ty);
     render_init << <blocks, threads >> > (nx, ny, d_rand_state);
 
-    switch (3) 
+    switch (1) 
     {
     case 1:
         create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);

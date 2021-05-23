@@ -18,6 +18,7 @@
 #include "material.h"
 #include "aarect.h"
 #include "moving_spheres.h"
+#include "box.h"
 
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
@@ -219,8 +220,11 @@ __global__ void cornell_box(hitable** d_list, hitable** d_world, camera** d_came
 		d_list[3] = new xz_rect(0, 555, 0, 555, 0, white);
 		d_list[4] = new xz_rect(0, 555, 0, 555, 555, white);
 		d_list[5] = new xy_rect(0, 555, 0, 555, 555, white);
+		
+		box(vec3(0,0,0), vec3(165, 330, 165), white, d_list, 5, 15, vec3(265, 0, 295));
+		box(vec3(0,0,0), vec3(165, 165, 165), white, d_list, 11, -18, vec3(130, 0, 65));
 
-		*d_world = new hitable_list(d_list, 6);
+		*d_world = new hitable_list(d_list, 17);
 
 
 		vec3 lookfrom(278, 278, -800);
@@ -255,7 +259,7 @@ int main()
 {
 	int nx = 600;
 	int ny = 600;
-	int ns = 10000;
+	int ns = 1000;
 	int tx = 8;
 	int ty = 8;
 	int depth = 50;

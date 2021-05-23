@@ -205,6 +205,42 @@ __global__ void create_world3(hitable** d_list, hitable** d_world, camera** d_ca
 	}
 }
 
+__global__ void cornell_box(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny) {
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+
+		auto red   = new lambertian   (vec3(.65, .05, .05));
+		auto white = new lambertian   (vec3(.73, .73, .73));
+		auto green = new lambertian   (vec3(.12, .45, .15));
+		auto light = new diffuse_light(vec3(15, 15, 15));
+
+		d_list[0] = new yz_rect(0, 555, 0, 555, 555, green);
+		d_list[1] = new yz_rect(0, 555, 0, 555, 0, red);
+		d_list[2] = new xz_rect(213, 343, 227, 332, 554, light);
+		d_list[3] = new xz_rect(0, 555, 0, 555, 0, white);
+		d_list[4] = new xz_rect(0, 555, 0, 555, 555, white);
+		d_list[5] = new xy_rect(0, 555, 0, 555, 555, white);
+
+		*d_world = new hitable_list(d_list, 6);
+
+
+		vec3 lookfrom(278, 278, -800);
+		vec3 lookat(278, 278, 0);
+		float dist_to_focus = 10;
+		float aperture = 0;
+		*d_camera = new camera(lookfrom,
+			lookat,
+			vec3(0, 1, 0),
+			40,
+			float(nx) / float(ny),
+			aperture,
+			dist_to_focus,
+			0.0,
+			1.0);
+
+		//cudaFree(randState);
+	}
+}
+
 __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camera) {
 	for (int i = 0; i < 5; i++) {
 		delete ((sphere*)d_list[i])->mat_ptr;
@@ -217,9 +253,9 @@ __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camer
 
 int main()
 {
-	int nx = 1920;
-	int ny = 1080;
-	int ns = 1000;
+	int nx = 600;
+	int ny = 600;
+	int ns = 10000;
 	int tx = 8;
 	int ty = 8;
 	int depth = 50;
@@ -251,7 +287,7 @@ int main()
 	dim3 threads(tx, ty);
 	render_init << <blocks, threads >> > (nx, ny, d_rand_state);
 
-	switch (4)
+	switch (5)
 	{
 	case 1:
 		create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
@@ -266,6 +302,9 @@ int main()
 		break;
 	case 4:
 		create_world3 << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, d_rand_state);
+		break;
+	case 5:
+		cornell_box << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
 	}
 
 	checkCudaErrors(cudaGetLastError());

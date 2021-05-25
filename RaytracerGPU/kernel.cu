@@ -221,10 +221,17 @@ __global__ void cornell_box(hitable** d_list, hitable** d_world, camera** d_came
 		d_list[4] = new xz_rect(0, 555, 0, 555, 555, white);
 		d_list[5] = new xy_rect(0, 555, 0, 555, 555, white);
 		
-		box(vec3(0,0,0), vec3(165, 330, 165), white, d_list, 5, 15, vec3(265, 0, 295));
-		box(vec3(0,0,0), vec3(165, 165, 165), white, d_list, 11, -18, vec3(130, 0, 65));
+		hitable* box1 = new Box(vec3(0, 0, 0), vec3(165, 330, 165), white);
+		box1 = new rotate_y(box1, 15);
+		box1 = new translate(box1, vec3(265, 0, 295));
+		d_list[6] = box1;
 
-		*d_world = new hitable_list(d_list, 17);
+		hitable* box2 = new Box(vec3(0, 0, 0), vec3(165, 165, 165), white);
+		box2 = new rotate_y(box2, -18);
+		box2 = new translate(box2, vec3(130, 0, 65));
+		d_list[7] = box2;
+
+		*d_world = new hitable_list(d_list, 8);
 
 
 		vec3 lookfrom(278, 278, -800);
@@ -240,8 +247,51 @@ __global__ void cornell_box(hitable** d_list, hitable** d_world, camera** d_came
 			dist_to_focus,
 			0.0,
 			1.0);
+	}
+}
 
-		//cudaFree(randState);
+__global__ void cornell_box_smoke(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny, curandState* rand_state)
+{
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+
+		auto red = new lambertian(vec3(.65, .05, .05));
+		auto white = new lambertian(vec3(.73, .73, .73));
+		auto green = new lambertian(vec3(.12, .45, .15));
+		auto light = new diffuse_light(vec3(15, 15, 15));
+
+		d_list[0] = new yz_rect(0, 555, 0, 555, 555, green);
+		d_list[1] = new yz_rect(0, 555, 0, 555, 0, red);
+		d_list[2] = new xz_rect(213, 343, 227, 332, 554, light);
+		d_list[3] = new xz_rect(0, 555, 0, 555, 0, white);
+		d_list[4] = new xz_rect(0, 555, 0, 555, 555, white);
+		d_list[5] = new xy_rect(0, 555, 0, 555, 555, white);
+
+		hitable* box1 = new Box(vec3(0, 0, 0), vec3(165, 330, 165), white);
+		box1 = new rotate_y(box1, 15);
+		box1 = new translate(box1, vec3(265, 0, 295));
+		d_list[6] = new constant_medium(box1, 0.01, vec3(0, 0, 0), rand_state);
+
+		hitable* box2 = new Box(vec3(0, 0, 0), vec3(165, 165, 165), white);
+		box2 = new rotate_y(box2, -18);
+		box2 = new translate(box2, vec3(130, 0, 65));
+		d_list[7] = new constant_medium(box2, 0.01, vec3(1, 1, 1), rand_state);
+
+		*d_world = new hitable_list(d_list, 8);
+
+
+		vec3 lookfrom(278, 278, -800);
+		vec3 lookat(278, 278, 0);
+		float dist_to_focus = 10;
+		float aperture = 0;
+		*d_camera = new camera(lookfrom,
+			lookat,
+			vec3(0, 1, 0),
+			40,
+			float(nx) / float(ny),
+			aperture,
+			dist_to_focus,
+			0.0,
+			1.0);
 	}
 }
 
@@ -291,7 +341,7 @@ int main()
 	dim3 threads(tx, ty);
 	render_init << <blocks, threads >> > (nx, ny, d_rand_state);
 
-	switch (5)
+	switch (6)
 	{
 	case 1:
 		create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
@@ -309,6 +359,9 @@ int main()
 		break;
 	case 5:
 		cornell_box << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
+		break;
+	case 6:
+		cornell_box_smoke << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, d_rand_state);
 	}
 
 	checkCudaErrors(cudaGetLastError());

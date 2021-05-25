@@ -6,11 +6,13 @@
 class hitable_list : public hitable {
 public:
     __device__ hitable_list() {}
-    __device__ hitable_list(hitable** l, int n) { list = l; list_size = n; }
+    __device__ hitable_list(hitable** l, int n) { list = l; list_size = n; allocated_list_size = n;}
     __device__ virtual bool hit(const ray& r, float tmin, float tmax, hit_record& rec) const;
     __device__ virtual bool bounding_box(double time0, double time1, aabb& output_box) const override;
+    __device__ void add(hitable* l);
     hitable** list;
     int list_size;
+    int allocated_list_size;
 };
 
 __device__ bool hitable_list::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
@@ -42,5 +44,17 @@ __device__ bool hitable_list::bounding_box(double time0, double time1, aabb& out
     }
 
     return true;
+}
+
+__device__ void hitable_list::add(hitable* e) {
+    if (allocated_list_size <= list_size) {
+        hitable** new_list = new hitable * [list_size * 2];
+        for (int i = 0; i < list_size; i++) {
+            new_list[i] = list[i];
+        }
+        list = new_list;
+        allocated_list_size = list_size * 2;
+    }
+    list[list_size++] = e;
 }
 #endif

@@ -146,4 +146,19 @@ public:
 public:
     texture1* emit;
 };
+
+class isotropic : public material {
+public:
+    __device__ isotropic(texture1* a) : albedo(a) {}
+    __device__ isotropic(vec3 a) : albedo(new solid_color(a)) {}
+
+    __device__ virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState* local_rand_state) const {
+        //printf("scater");
+        scattered = ray(rec.p, random_in_unit_sphere(local_rand_state), r_in.time());
+        attenuation = albedo->value(rec.u, rec.v, rec.p);
+        return true;
+    }
+
+    texture1* albedo;
+};
 #endif

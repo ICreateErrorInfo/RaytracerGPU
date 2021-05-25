@@ -69,20 +69,21 @@ public:
 };
 
 __device__ bool xy_rect::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
-    auto t = (k - r.origin().z()) / r.direction().z();
+    float t = (k - r.origin().z()) / r.direction().z();
     if (t < t_min || t > t_max)
         return false;
-    auto x = r.origin().x() + t * r.direction().x();
-    auto y = r.origin().y() + t * r.direction().y();
+    float x = r.origin().x() + t * r.direction().x();
+    float y = r.origin().y() + t * r.direction().y();
     if (x < x0 || x > x1 || y < y0 || y > y1)
         return false;
     rec.u = (x - x0) / (x1 - x0);
     rec.v = (y - y0) / (y1 - y0);
     rec.t = t;
-    auto outward_normal = vec3(0, 0, 1);
+    vec3 outward_normal = vec3(0, 0, 1);
     rec.setFaceNormal(r, outward_normal);
     rec.mat_ptr = mp;
     rec.p = r.point_at_parameter(t);
+
     return true;
 }
 __device__ bool xz_rect::hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
@@ -119,5 +120,25 @@ __device__ bool yz_rect::hit(const ray& r, float t_min, float t_max, hit_record&
     rec.p = r.point_at_parameter(t);
     return true;
 }
+
+
+class FlipFace : public hitable {
+public:
+    __device__ FlipFace(hitable* e) : ptr(e) {}
+
+    __device__ virtual bool hit(const ray& r, float t_min, float t_max, hit_record& rec) const {
+        if (!ptr->hit(r, t_min, t_max, rec))
+            return false;
+
+        rec.frontface = !rec.frontface;
+        return true;
+    }
+
+    __device__ virtual bool bounding_box(double t0, double t1, aabb& output_box) const {
+        return ptr->bounding_box(t0, t1, output_box);
+    }
+
+    hitable* ptr;
+};
 
 #endif

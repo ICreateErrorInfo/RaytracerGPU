@@ -80,6 +80,7 @@
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\stb-master\stb_image.h" />
     <ClInclude Include="aabb.h" />
     <ClInclude Include="aarect.h" />
     <ClInclude Include="box.h" />

@@ -19,6 +19,9 @@
 #include "aarect.h"
 #include "moving_spheres.h"
 #include "box.h"
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "C:\Users\Moritz\source\repos\stb-master/stb_image.h"
 
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
@@ -52,7 +55,12 @@ __device__ vec3 color(const ray& r, hitable** world, vec3 background, int depth,
 			}
 		}
 		else {
-			return cur_emitted;
+			//return cur_emitted;
+
+			vec3 unit_direction = unit_vector(cur_ray.direction());
+			float t = 0.5f * (unit_direction.y() + 1.0f);
+			vec3 c = (1.0f - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+			return cur_attenuation * c;
 		}
 	}
 	return cur_emitted; // exceeded recursion
@@ -206,6 +214,30 @@ __global__ void create_world3(hitable** d_list, hitable** d_world, camera** d_ca
 	}
 }
 
+__global__ void Earth(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny, ImageTexture** tex) {
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+
+		d_list[0] = new sphere(vec3(0, 0, 0), 2, new lambertian(*tex));
+
+		*d_world = new hitable_list(d_list, 1);
+
+
+		vec3 lookfrom(13, 2, 3);
+		vec3 lookat(0, 0, 0);
+		float dist_to_focus = 10;
+		float aperture = 0;
+		*d_camera = new camera(lookfrom,
+			lookat,
+			vec3(0, 1, 0),
+			20,
+			float(nx) / float(ny),
+			aperture,
+			dist_to_focus,
+			0.0,
+			1.0);
+	}
+}
+
 __global__ void cornell_box(hitable** d_list, hitable** d_world, camera** d_camera, int nx, int ny) {
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 
@@ -304,12 +336,18 @@ __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camer
 	delete* d_camera;
 }
 
+__global__ void texture_init(unsigned char* tex_data, int nx, int ny, ImageTexture** tex) {
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+		*tex = new ImageTexture(tex_data, nx, ny);
+	}
+}
+
 
 int main()
 {
 	int nx = 600;
 	int ny = 600;
-	int ns = 1000;
+	int ns = 5000;
 	int tx = 8;
 	int ty = 8;
 	int depth = 50;
@@ -320,6 +358,17 @@ int main()
 
 	int num_pixels = nx * ny;
 	size_t fb_size = num_pixels * sizeof(vec3);
+
+	int tex_x, tex_y, tex_n;
+	unsigned char* tex_data_host = stbi_load("C:/Users/Moritz/source/repos/RaytracerGPU/RaytracerGPU/earthmap.jpg", &tex_x, &tex_y, &tex_n, 0);
+
+	unsigned char* tex_data;
+	checkCudaErrors(cudaMallocManaged(&tex_data, tex_x * tex_y * tex_n * sizeof(unsigned char)));
+	checkCudaErrors(cudaMemcpy(tex_data, tex_data_host, tex_x * tex_y * tex_n * sizeof(unsigned char), cudaMemcpyHostToDevice));
+
+	ImageTexture** texture;
+	checkCudaErrors(cudaMalloc((void**)&texture, sizeof(ImageTexture*)));
+	texture_init << <1, 1 >> > (tex_data, tex_x, tex_y, texture);
 
 	// allocate FB
 	vec3* fb;
@@ -341,7 +390,7 @@ int main()
 	dim3 threads(tx, ty);
 	render_init << <blocks, threads >> > (nx, ny, d_rand_state);
 
-	switch (6)
+	switch (7)
 	{
 	case 1:
 		create_world << <1, 1 >> > (d_list, d_world, d_camera, nx, ny);
@@ -362,6 +411,10 @@ int main()
 		break;
 	case 6:
 		cornell_box_smoke << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, d_rand_state);
+		break;
+	case 7:
+		Earth << <1, 1 >> > (d_list, d_world, d_camera, nx, ny, texture);
+		break;
 	}
 
 	checkCudaErrors(cudaGetLastError());
